@@ -1,0 +1,179 @@
+---
+title: "Homework 3"
+author: "Zoey Zhao"
+date: "10/21/2021"
+geometry: margin = 1cm
+output: pdf_document
+---
+
+# Costs of Carotid Endarterectomy in Maryland
+## Scientific Background:
+Carotid endarterectomy (CE) is a vascular surgical procedure intending to improve blood flow through the carotid artery, which ascends from the aorta to the brain. This surgery is designed to reduce the risk of stroke and sudden death. Approximately 2,000 CEs are performed each year at the more than 50 hospitals in the state of Maryland.  Data on each procedure are routinely collected by the State of Maryland Health Services Cost Review Commission (HSCRC) and are publicly available.
+
+An important question about carotid endarterectomy addressed by the HSCRC data is whether the risk of stroke or death after surgery decreases with increasing numbers of surgeries by the patient’s physician and at the patient’s hospital.  
+
+In this project, we will use the CE data from HSCRC to explore the distribution of procedure costs across a population of procedures conducted in Maryland for the period 1990 through 1995. An interesting question is how mean CE costs differ between men and women. We will be estimating mean costs for different strata and by using confidence intervals and tests of hypotheses to address the question of how the CE cost distribution differs between men and women. Here we have list of CE values for the entire population of Maryland so that we can directly calculate the “truth” (population means for men and women); in actual scientific studies, we have only a sample (subset). By pretending we don’t know the true population values, we can see statistical inference in action.
+
+## Problem 1 (3 points)
+Draw a random sample without replacement of 200 observations (100 men and 100 women) from the entire CE data set named ce8130entire.csv. Call this first sample "A" and save the sample. In "sex" variable, men are identified by "1", and women by "2". Note: To obtain the sample data set of approximately 200 observations, you can use the following code. Replace the "set.seed" number with an integer of your choice (3 points).
+
+```{r message=FALSE}
+library(dplyr)
+library(tidyverse)
+population <- 
+  read.csv("./ce8130entire.csv") %>%
+  mutate(sex = as.factor(sex))%>%
+  mutate(sex = factor(sex, levels = c(1,2), labels = c("Male", "Female")))
+
+set.seed(666)
+A <- population %>%
+  group_by(sex) %>%
+  sample_n(100)
+
+A
+```
+
+
+## Problem 2 (3 points)
+Now use the same seed as before but this time draw a random sample without replacement of 60 observations (30 men and 30 women) and call it sample “B” (Note that Sample “B” is more than 3 times smaller than sample “A”). Save it as a separate sample. Replace the seed number with the same seed number as you used above (3 points).
+
+```{r}
+set.seed(666)
+B <- population %>%
+  group_by(sex) %>%
+  sample_n(30)
+
+B
+```
+
+## Problem 3 (3 points)
+Using sample “A”, display the distribution of CE cost in $USD (variable name: “totchg”) separately for men and women using side-by-side boxplots and histograms. Label your figures appropriately.
+
+```{r message=FALSE}
+boxplot(A$totchg ~ A$sex, names=c("Men","Women"), ylab ="CE cost in $USD", xlab ="Sex", main = "Side-by-side Boxplots of the distribution of CE cost in $USD")
+
+library(ggplot2)
+ggplot(A, aes(x = totchg)) +
+  geom_histogram(position = "identity", bins = 30, alpha = 0.4) + 
+  facet_grid(~sex) + 
+  labs(title = "Side-by-side Histograms of the distribution of CE cost in $USD",
+    x = "CE cost in $USD")
+```
+
+## Problem 4 (6 points)
+Calculate the mean CE cost and 95% confidence interval separately for men and women in sample “A” as well as sample “B”. Assume we don’t know the population variance. Plot the sample “A” and sample “B” confidence intervals next to each other (by sex). How do they differ, which confidence intervals are wider?  Explain why.
+(*Note: For the purposes of confidence interval estiamteion and hypothesis testing, let's assume that all the assumptions, including the assumption of normal distribution, are met.)
+
+```{r message=FALSE}
+#Suggested generic code is provided as a starting point. 
+#Feel free to modify or use any other function/s as deemed necessary.
+A$sample = "Sample A"
+B$sample = "Sample B"
+A_B = rbind(A, B)
+library(Rmisc)
+A_B_summary <- summarySE(A_B, measurevar="totchg", groupvars=c("sex","sample"))
+A_B_summary$sex <- as.factor(A_B_summary$sex)
+p_dodge = position_dodge(0.1) # move them .05 to the left and right
+ggplot(A_B_summary, aes(x=sample, y=totchg, colour=sex)) + 
+    geom_errorbar(aes(ymin=totchg-ci, ymax=totchg+ci), width=.1, position=p_dodge) +
+    geom_point(position=p_dodge)
+```
+
+The difference in mean between male and female is larger in Sample B. Confidence intervals for both male and female are wider in Sample B. This is because the sample size of B is smaller than A, and according to the formula of calculating CI: $\bar X \pm z_{1-\alpha /2}\frac{\sigma}{\sqrt n}$, the width of the CI increases as the sample size $n$ decreases.
+
+```{r message=FALSE}
+#Calculate 95% CI of average costs of CE for men and women for further use
+AupperCIforMale <- 
+  filter(A_B_summary, sex == "Male", sample == "Sample A")$totchg +
+  filter(A_B_summary, sex == "Male", sample == "Sample A")$ci
+AlowerCIforMale <-
+  filter(A_B_summary, sex == "Male", sample == "Sample A")$totchg -
+  filter(A_B_summary, sex == "Male", sample == "Sample A")$ci
+AupperCIforFemale <- 
+  filter(A_B_summary, sex == "Female", sample == "Sample A")$totchg +
+  filter(A_B_summary, sex == "Female", sample == "Sample A")$ci
+AlowerCIforFemale <-
+  filter(A_B_summary, sex == "Female", sample == "Sample A")$totchg -
+  filter(A_B_summary, sex == "Female", sample == "Sample A")$ci
+
+AupperCIforMale
+AlowerCIforMale
+AupperCIforFemale
+AlowerCIforFemale
+```
+
+## Problem 5 (4 points)
+Conduct test of equality of variances of CE cost among men vs women in sample A and interpret your results.
+```{r}
+#Suggested generic code is provided as a starting point. 
+#Feel free to modify or use any other function/s as deemed necessary.
+var.test(totchg ~ sex, data = A)
+```
+
+The p-value of F-test is p = 0.1175 > 0.05, so there is no significant difference between variances of CE cost among men vs women in Sample A at a significance level $\alpha =0.05$.
+
+## Problem 6 (5 points)
+Using sample “A”, calculate the difference between the mean CE costs for men and women (cost in men -cost in women).  Calculate a 95% CI for this difference. Assume we don’t know the population variance. Your decision of equal vs unequal variance should be based on your answer in Problem 5.
+
+*Based on Problem 5, I will assume that variances of CE cost among men vs women in sample A are the same and use the mean of the sd's of the two samples as the general sd.*
+
+```{r}
+#calculate the difference between the mean CE costs for men and women
+meandiff <- 
+  mean(pull(filter(A, sex == 'Male'), totchg)) - 
+  mean(pull(filter(A, sex == 'Female'), totchg))
+
+#Calculate a 95% CI for this difference
+a <- meandiff
+#Use the mean of sd's of two samples
+s <- (sd(pull(filter(A, sex == 'Female'), totchg)) +
+        sd(pull(filter(A, sex == 'Male'), totchg)))/2
+n1 <- 100
+n2 <- 100
+error <- qt(0.975,df=n1+n2-2)*s*sqrt(1/n1+1/n2)
+left <- a-error
+right <- a+error
+
+meandiff
+left
+right
+```
+
+The difference between the mean CE costs for men and women is 59.45, and 95% CI for this difference is -1328.033 to 1446.933.   
+
+## Problem 7 (7 points)
+Now use sample “A” to test the hypothesis whether men and women have a different CE cost. State the null and alternative hypotheses and interpret your results.
+
+```{r}
+t.test(totchg ~ sex, data = A, var.equal = TRUE, paired = FALSE)
+```
+
+Null hypothesis: the mean CE costs for men and women are the same.  
+Alternative hypothesis: the mean CE costs for men and women are different.  
+Since p-value = 0.933 > 0.05, we can conclude that there is insufficient evidence that to claim that the mean CE costs for men and women are different at a significance level $\alpha =0.05$.
+
+## Problem 8 (11 points)
+Use your results from Sample A: graphs, estimates, confidence intervals, and/or test results, to write a one paragraph summary of your findings regarding the average costs of CE for men and women. Write as if for an audience of health services researchers. Be quantitative and use health-services language, rather than statistical jargon in your write-up.
+
+By taking a random sample (sample A) without replacement of 200 observations from the entire CE data from HSCRC, we found that the average cost of CE in men is 6806.76, and the average cost of CE in women is 6747.31. We are 95% confident that  in the population, the average cost of CE in men is between 5897.439 and 7716.081, the average cost of CE in women is between 5682.295 and 7812.325. As shown in graphs in Problem 3, distributions of CE costs for men and women in sample A are very similar. By doing some calculations, we found that variances of CE cost among men and women in sample A are almost the same. The difference in average costs of CE for men and women in the sample is 59.45, and we are 95% confident that the difference in true population lies between -1332.341 and 1451.241, which includes 0. The p-value = 0.933 given by the hypothesis test told us that if the mean CE costs for men and women are the same, the probability of observing a result as extreme as (or more extreme) we observed in sample A is 93.3%, which is highly likely. Therefore, we concluded that there is no statistically significant difference in average costs of CE for men and women in the population.
+
+## Problem 9 (4 points)
+Now for the truth, which we have the luxury of knowing in this problem set. Compute the actual mean CE cost for men ($\mu_{M}$) and for women ($\mu_{W}$) for the whole population (CE8130entire.csv). Also calculate the difference ($\mu_{M}-\mu_{W}$). Do your 95% CIs include the true means?
+```{r}
+meanMen <- mean(pull(filter(population, sex == 'Male'), totchg))
+meanWomen <- mean(pull(filter(population, sex == 'Female'), totchg))
+
+meanMen
+meanWomen
+meanMen - meanWomen
+```
+
+For the whole population, the actual mean CE cost for men is $\mu_{M}=6890.872$) and for women is $\mu_{W}=7014.377$, which are included in the 95% CIs of the sample means shown in Problem 4. The true difference in means is $\mu_{M}-\mu_{W}=-123.5047$, which is included in the 95% CIs of the difference in sample means in Problem 6 and 7.
+
+## Problem 10 (4 points)
+If each student in a class of 140 calculates a 95% confidence interval for ($\mu_{M}-\mu_{W}$), how many of these intervals do you expect to contain the true population mean difference? Calculate the probability that all 140 will contain the true population mean difference. 
+
+I would expect $140\times95\% = 133$ student's CI to contain the true population mean difference. The probability that all 140 will contain the true population mean difference is $0.95^{140}=7.6\times 10^{-4}$.
+
+
+
